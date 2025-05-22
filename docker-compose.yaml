@@ -1,0 +1,57 @@
+services:
+  # MySQL 데이터베이스
+  mysql:
+    image: mysql:8.0
+    container_name: board_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: board_db
+      MYSQL_USER: boarduser
+      MYSQL_PASSWORD: boardpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - board_network
+
+  # FastAPI 딥러닝 서버
+  fastapi-server:
+    build:
+      context: ./fastapi-server
+      dockerfile: Dockerfile
+    container_name: fastapi_dl_server
+    ports:
+      - "8000:8000"
+    networks:
+      - board_network
+
+  # Express 게시판 서버
+  express-server:
+    build:
+      context: ./express-server
+      dockerfile: Dockerfile
+    container_name: express_board_server
+    environment:
+      DB_HOST: mysql
+      DB_USER: boarduser
+      DB_PASSWORD: boardpass
+      DB_NAME: board_db
+      DB_PORT: 3306
+      FASTAPI_URL: http://fastapi-server:8000
+      JWT_SECRET: your-super-secret-jwt-key
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql
+      - fastapi-server
+    networks:
+      - board_network
+
+volumes:
+  mysql_data:
+
+networks:
+  board_network:
+    driver: bridge
