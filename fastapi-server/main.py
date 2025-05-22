@@ -4,10 +4,8 @@ import torch
 import torch.nn as nn
 import uvicorn
 
-# FastAPI 앱 초기화
 app = FastAPI(title="딥러닝 테스트 서버", version="1.0.0")
 
-# 간단한 텍스트 분류 모델 (테스트용)
 class SimpleTextClassifier(nn.Module):
     def __init__(self, vocab_size=1000, embed_dim=128, hidden_dim=64, num_classes=3):
         super().__init__()
@@ -23,11 +21,9 @@ class SimpleTextClassifier(nn.Module):
         logits = self.classifier(last_output)
         return self.softmax(logits)
 
-# 전역 변수
 model = None
 word_to_idx = {}
 
-# Pydantic 모델들
 class TextRequest(BaseModel):
     text: str
 
@@ -42,14 +38,12 @@ class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
 
-# 애플리케이션 시작 시 모델 로드
 @app.on_event("startup")
 async def load_model():
     global model, word_to_idx
     
     try:
         print("모델 로딩 시작...")
-        # 간단한 단어 사전 생성
         common_words = [
             "좋다", "나쁘다", "보통", "최고", "최악", "괜찮다", "별로", "훌륭하다", 
             "멋지다", "끔찍하다", "안녕", "hello", "world", "python", "fastapi",
@@ -58,7 +52,6 @@ async def load_model():
         word_to_idx = {word: idx for idx, word in enumerate(common_words)}
         word_to_idx["<UNK>"] = len(word_to_idx)
         
-        # 모델 초기화
         model = SimpleTextClassifier(vocab_size=len(word_to_idx))
         model.eval()
         print("✅ 모델이 성공적으로 로드되었습니다.")
@@ -78,7 +71,6 @@ def text_to_tensor(text: str, max_length: int = 20):
         else:
             indices.append(word_to_idx["<UNK>"])
     
-    # 패딩 또는 자르기
     if len(indices) < max_length:
         indices.extend([0] * (max_length - len(indices)))
     else:
@@ -86,7 +78,6 @@ def text_to_tensor(text: str, max_length: int = 20):
     
     return torch.tensor([indices])
 
-# API 엔드포인트들
 @app.get("/", response_model=HealthResponse)
 async def health_check():
     """헬스 체크 엔드포인트"""
@@ -102,15 +93,12 @@ async def predict_sentiment(request: TextRequest):
         raise HTTPException(status_code=503, detail="모델이 로드되지 않았습니다")
     
     try:
-        # 텍스트를 텐서로 변환
         input_tensor = text_to_tensor(request.text)
         
-        # 예측 수행
         with torch.no_grad():
             predictions = model(input_tensor)
             probabilities = predictions[0].tolist()
         
-        # 결과 해석
         labels = ["부정적", "중성", "긍정적"]
         max_idx = probabilities.index(max(probabilities))
         
@@ -141,6 +129,5 @@ async def get_model_info():
         "classes": ["부정적", "중성", "긍정적"]
     }
 
-# 서버 실행 (개발용)
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

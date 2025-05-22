@@ -14,7 +14,6 @@ app.use(cors());
 app.use(express.json({ charset: 'utf-8'}));
 app.use(express.urlencoded({ extended: true, charset: 'utf-8' }));
 
-// MySQL 연결 풀 설정
 const poolConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -30,7 +29,6 @@ const poolConfig = {
 
 let pool;
 
-// 🔧 재시도 로직이 있는 데이터베이스 연결
 async function connectWithRetry(maxRetries = 10, retryDelay = 5000) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -38,7 +36,6 @@ async function connectWithRetry(maxRetries = 10, retryDelay = 5000) {
             
             pool = mysql.createPool(poolConfig);
             
-            // 연결 테스트
             const [result] = await pool.execute('SELECT 1');
             console.log('✅ MySQL 연결 성공!');
             
@@ -61,7 +58,6 @@ async function initializeDatabase() {
     try {
         console.log('🏗️  데이터베이스 테이블 초기화...');
         
-        // 사용자 테이블
         await pool.execute(`
             CREATE TABLE IF NOT EXISTS users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -72,7 +68,6 @@ async function initializeDatabase() {
             )
         `);
 
-        // 게시글 테이블
         await pool.execute(`
             CREATE TABLE IF NOT EXISTS posts (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -131,7 +126,6 @@ async function analyzeSentiment(text) {
     }
 }
 
-// 라우트
 app.get('/', (req, res) => {
     res.json({ 
         message: '게시판 API 서버',
@@ -146,7 +140,6 @@ app.get('/', (req, res) => {
     });
 });
 
-// 회원가입
 app.post('/auth/register', async (req, res) => {
     if (!pool) {
         return res.status(503).json({ error: '데이터베이스 연결이 없습니다' });
@@ -181,7 +174,6 @@ app.post('/auth/register', async (req, res) => {
     }
 });
 
-// 로그인
 app.post('/auth/login', async (req, res) => {
     if (!pool) {
         return res.status(503).json({ error: '데이터베이스 연결이 없습니다' });
@@ -230,7 +222,6 @@ app.post('/auth/login', async (req, res) => {
     }
 });
 
-// 게시글 목록 조회
 app.get('/posts', async (req, res) => {
     if (!pool) {
         return res.status(503).json({ error: '데이터베이스 연결이 없습니다' });
@@ -256,7 +247,6 @@ app.get('/posts', async (req, res) => {
         
         const offset = (page - 1) * limit;
 
-        // 전체 개수 조회
         const [countResult] = await pool.execute('SELECT COUNT(*) as total FROM posts');
         const total = countResult[0].total;
 
@@ -272,7 +262,6 @@ app.get('/posts', async (req, res) => {
             });
         }
 
-        // 게시글 조회
         const query = `
             SELECT p.id, p.title, p.content, p.sentiment, p.sentiment_confidence, 
                    p.created_at, p.updated_at, u.username as author
@@ -300,7 +289,6 @@ app.get('/posts', async (req, res) => {
     }
 });
 
-// 게시글 작성
 app.post('/posts', authenticateToken, async (req, res) => {
     if (!pool) {
         return res.status(503).json({ error: '데이터베이스 연결이 없습니다' });
@@ -333,7 +321,6 @@ app.post('/posts', authenticateToken, async (req, res) => {
     }
 });
 
-// 게시글 상세 조회
 app.get('/posts/:id', async (req, res) => {
     if (!pool) {
         return res.status(503).json({ error: '데이터베이스 연결이 없습니다' });
@@ -367,15 +354,12 @@ app.get('/posts/:id', async (req, res) => {
     }
 });
 
-// 🚀 서버 시작 로직
 async function startServer() {
     console.log('🔄 서버 시작 중...');
     
-    // 1. 데이터베이스 연결 시도
     const dbConnected = await connectWithRetry();
     
     if (dbConnected) {
-        // 2. 테이블 초기화
         const dbInitialized = await initializeDatabase();
         
         if (dbInitialized) {
@@ -387,7 +371,6 @@ async function startServer() {
         console.log('⚠️  데이터베이스 연결 실패했지만 서버는 계속 실행');
     }
     
-    // 3. Express 서버 시작
     app.listen(PORT, () => {
         console.log(`🚀 Express 서버가 포트 ${PORT}에서 실행 중입니다`);
         console.log(`🤖 FastAPI URL: ${FASTAPI_URL}`);

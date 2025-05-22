@@ -1,5 +1,4 @@
 services:
-  # MySQL 데이터베이스
   mysql:
     image: mysql:8.0
     container_name: board_mysql
@@ -16,7 +15,6 @@ services:
     networks:
       - board_network
 
-  # FastAPI 딥러닝 서버
   fastapi-server:
     build:
       context: ./fastapi-server
@@ -27,7 +25,6 @@ services:
     networks:
       - board_network
 
-  # Express 게시판 서버
   express-server:
     build:
       context: ./express-server
